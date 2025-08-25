@@ -5,16 +5,16 @@ Apache Beam BigQuery and Managed I/O Demo
 This demo demonstrates 8 different Apache Beam pipelines:
 
 Standard BigQueryIO operations:
-1. Write sample data to BigQuery table
-2. Read all data from BigQuery table
-3. Read filtered data with SQL queries
-4. Copy table data to BigQuery Iceberg table
+1. Write sample data to BigQuery table using BigQueryIO
+2. Read all data from BigQuery table using BigQueryIO
+3. Read filtered data using BigQueryIO
+4. Copy table data to BigQuery Managed Iceberg Table using BigQueryIO
 
 Managed I/O operations:
 5. Copy table data using Managed I/O
 6. Read filtered data using Managed I/O
-7. Copy table data to Iceberg using Managed I/O
-8. Read filtered data from Iceberg using Managed I/O
+7. Copy table data to BigLake Iceberg Table using Managed I/O
+8. Read filtered data from BigLake Iceberg Table using Managed I/O
 
 Requirements:
 - GCP project with BigQuery enabled
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def write_to_bigquery():
-    """Write sample data to BigQuery table."""
+    """Write sample data to BigQuery table using standard BigQueryIO."""
     logger.info("Starting write pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -72,7 +72,7 @@ def write_to_bigquery():
 
 
 def read_from_bigquery():
-    """Read all data from BigQuery table."""
+    """Read all data from BigQuery table using standard BigQueryIO."""
     logger.info("Starting read pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -98,7 +98,7 @@ def read_from_bigquery():
 
 
 def read_with_filter():
-    """Read filtered data from BigQuery table (active Engineering employees, age > 30)."""
+    """Read filtered data from BigQuery table using SQL query."""
     logger.info("Starting filtered read pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -132,13 +132,13 @@ def read_with_filter():
 
 
 def copy_table_iceberg():
-    """Copy data from BigQuery table to BigQuery Iceberg table."""
+    """Copy data to BigQuery Iceberg table using standard BigQueryIO."""
     logger.info("Starting copy table to Iceberg pipeline...")
 
     # Initialize BigQuery client for table management
     client = bq_client.Client(project=GCP_PROJECT)
 
-    # Create Iceberg table if not exists
+    # Create Iceberg table with required options (Iceberg tables don't support dynamic table creation)
     create_table_sql = f"""
     CREATE TABLE IF NOT EXISTS `{BQ_ICEBERG_TABLE_NAME}` (
         id INTEGER,
@@ -162,12 +162,12 @@ def copy_table_iceberg():
         f"Creating Iceberg table if not exists: {BQ_ICEBERG_TABLE_NAME}")
     client.query(create_table_sql).result()
 
-    # Delete existing data from Iceberg table
+    # Clear existing data (Iceberg tables don't support TRUNCATE)
     delete_sql = f"DELETE FROM `{BQ_ICEBERG_TABLE_NAME}` WHERE TRUE"
     logger.info(f"Clearing existing data from {BQ_ICEBERG_TABLE_NAME}")
     client.query(delete_sql).result()
 
-    # Run Beam pipeline to copy data
+    # Copy data using Beam pipeline
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
@@ -274,7 +274,7 @@ def read_filtered_with_managed_io():
 
 
 def copy_table_to_iceberg_with_managed_io():
-    """Copy data from BigQuery table to Iceberg table using Managed I/O."""
+    """Copy data to BigLake Iceberg table using Managed I/O."""
     logger.info("Starting copy table to Iceberg with Managed I/O pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -306,7 +306,7 @@ def copy_table_to_iceberg_with_managed_io():
             }
         )
 
-        # Simple catalog configuration
+        # BigQuery Metastore catalog configuration
         catalog_config = {
             'warehouse': f'{GCS_BUCKET}/iceberg_on_bq',
             'catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
@@ -314,7 +314,6 @@ def copy_table_to_iceberg_with_managed_io():
             'location': REGION
         }
 
-        # Managed I/O handles table creation and schema conversion
         read_data | 'WriteToIcebergManagedIO' >> managed.Write(
             managed.ICEBERG,
             config={
@@ -329,7 +328,7 @@ def copy_table_to_iceberg_with_managed_io():
 
 
 def read_from_iceberg_with_managed_io():
-    """Read filtered data from Iceberg table using Managed I/O."""
+    """Read filtered data from BigLake Iceberg table using Managed I/O."""
     logger.info("Starting read from Iceberg with Managed I/O pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -343,7 +342,7 @@ def read_from_iceberg_with_managed_io():
         logger.info(
             f"Reading filtered data from {BQ_ICEBERG_MANAGEDIO_TABLE_NAME} using Managed I/O")
 
-        # Simple catalog configuration
+        # BigQuery Metastore catalog configuration
         catalog_config = {
             'warehouse': f'{GCS_BUCKET}/iceberg_on_bq',
             'catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
@@ -377,33 +376,32 @@ def run_demo():
         logger.info("=" * 60)
 
         logger.info(
-            "\n1. Writing sample data to BigQuery table using BigQueryIO...")
+            "\n1. Write sample data to BigQuery table using BigQueryIO...")
         write_to_bigquery()
 
         logger.info(
-            "\n2. Reading all data from BigQuery table using BigQueryIO...")
+            "\n2. Read all data from BigQuery table using BigQueryIO...")
         read_from_bigquery()
 
-        logger.info(
-            "\n3. Reading filtered data using BigQueryIO...")
+        logger.info("\n3. Read filtered data using BigQueryIO...")
         read_with_filter()
 
-        logger.info("\n4. Copying table data using Managed I/O...")
+        logger.info("\n4. Copy table data using Managed I/O...")
         copy_table_with_managed_io()
 
-        logger.info("\n5. Reading filtered data using Managed I/O...")
+        logger.info("\n5. Read filtered data using Managed I/O...")
         read_filtered_with_managed_io()
 
         logger.info(
-            "\n6. Copying table data to BigQuery Managed Iceberg Table using BigQueryIO...")
+            "\n6. Copy table data to BigQuery Managed Iceberg Table using BigQueryIO...")
         copy_table_iceberg()
 
         logger.info(
-            "\n7. Copying table to BigLake Iceberg Table using Managed I/O...")
+            "\n7. Copy table data to BigLake Iceberg Table using Managed I/O...")
         copy_table_to_iceberg_with_managed_io()
 
         logger.info(
-            "\n8. Reading filtered data from BigLake Iceberg Table using Managed I/O...")
+            "\n8. Read filtered data from BigLake Iceberg Table using Managed I/O...")
         read_from_iceberg_with_managed_io()
 
         logger.info("\n" + "=" * 60)

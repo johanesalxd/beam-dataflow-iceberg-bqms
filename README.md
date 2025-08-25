@@ -1,20 +1,22 @@
 # Apache Beam BigQuery and Managed I/O Demo
 
-A comprehensive demonstration of Apache Beam with both standard BigQueryIO and Managed I/O for BigQuery operations. This demo showcases 6 different pipeline patterns for reading, writing, and copying data.
+A demonstration of Apache Beam with standard BigQueryIO and Managed I/O for BigQuery operations. This demo showcases 8 different pipeline patterns for reading, writing, and copying data.
 
 ## What This Demo Does
 
-The demo runs 6 sequential pipelines:
+The demo runs 8 sequential pipelines:
 
 ### Standard BigQueryIO Operations
 1. **Write Pipeline**: Creates sample employee data and writes it to a BigQuery table
 2. **Read Pipeline**: Reads all data from the BigQuery table
-3. **Filtered Read Pipeline**: Demonstrates reading with SQL filters (active Engineering employees, age > 30)
-4. **Copy Table to BigQuery Iceberg Pipeline**: Copies data to another BigQuery table using standard BigQueryIO
+3. **Filtered Read Pipeline**: Reads with SQL filters (active Engineering employees, age > 30)
+4. **Copy to BigQuery Iceberg**: Copies data to BigQuery Iceberg table using standard BigQueryIO
 
 ### Managed I/O Operations
 5. **Managed Copy Pipeline**: Copies data using Managed I/O (automatic schema handling)
 6. **Managed Filtered Read**: Reads filtered data using Managed I/O with timestamp casting
+7. **Copy to BigLake Iceberg**: Copies data to BigLake Iceberg table using Managed I/O
+8. **Read from BigLake Iceberg**: Reads filtered data from BigLake Iceberg table using Managed I/O
 
 ## Prerequisites
 
@@ -67,42 +69,25 @@ The demo uses employee records with the following schema:
 - **Query-based Reading**: SQL queries with automatic type handling
 - **Timestamp Workaround**: CAST operations for timestamp compatibility
 
-## Expected Output
-
-```
-============================================================
-APACHE BEAM BIGQUERY + MANAGED I/O DEMO
-============================================================
-
-1. Writing sample data to BigQuery table (BigQueryIO)...
-2. Reading all data from BigQuery table (BigQueryIO)...
-3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...
-4. Copying table data using Managed I/O...
-5. Reading filtered data using Managed I/O...
-6. Copying table data to Managed Iceberg Table...
-
-============================================================
-DEMO COMPLETED SUCCESSFULLY!
-All BigQueryIO and Managed I/O operations completed!
-============================================================
-```
-
 ## Tables Created
 
-The demo creates three BigQuery tables:
+The demo creates four tables:
 - **Standard Table** (`BQ_TABLE_NAME`): Original data written with BigQueryIO
 - **Managed Table** (`BQ_MANAGEDIO_TABLE_NAME`): Copy created with Managed I/O
-- **Iceberg Table** (`BQ_ICEBERG_TABLE_NAME`): Copy created with BigQueryIO
+- **BigQuery Iceberg Table** (`BQ_ICEBERG_TABLE_NAME`): Copy created with BigQueryIO
+- **BigLake Iceberg Table** (`BQ_ICEBERG_MANAGEDIO_TABLE_NAME`): Copy created with Managed I/O
 
-## BigQueryIO vs Managed I/O
+### Catalog Configuration
+Uses BigQuery Metastore Catalog with these settings:
+- **Warehouse**: GCS bucket path for Iceberg data storage
+- **Catalog Implementation**: `org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog`
+- **Project**: GCP project for BigQuery operations
+- **Location**: GCP region for processing
 
-| Feature | Standard BigQueryIO | Managed I/O |
-|---------|-------------------|-------------|
-| Schema Definition | Manual schema required | Automatic schema inference |
-| Configuration | Detailed parameters | Simplified config object |
-| Timestamp Handling | Native support | Requires CAST workaround |
-| Table Operations | Full control | Streamlined operations |
-| Use Case | Production workloads | Rapid prototyping |
+### Key Features
+- **Automatic Schema Handling**: No manual schema definition required
+- **Filter Support**: Native filter expressions for reading data
+- **Simplified Configuration**: Config-based approach for table operations
 
 ## BigQuery Iceberg Table Limitations
 
@@ -135,7 +120,7 @@ This approach ensures the Iceberg table behaves like a standard table with TRUNC
 
 ## Known Issues
 
-- **Managed I/O Timestamps**: The `created_at` field must be cast as STRING in Managed I/O queries to avoid `TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'`
+- **Managed I/O Timestamps**: The `created_at` field must be cast as STRING in Managed I/O queries to avoid TypeError when reading directly from tables
 - **Iceberg Table Dependencies**: Requires `google-cloud-bigquery` client library for SQL execution
 
 ## Troubleshooting
@@ -147,7 +132,7 @@ This approach ensures the Iceberg table behaves like a standard table with TRUNC
 
 ## Files
 
-- `beam_iceberg_demo.py`: Main demo script with 6 pipeline functions
+- `beam_iceberg_demo.py`: Main demo script with 8 pipeline functions
 - `config.py`: Configuration settings (update with your project details)
 - `requirements.txt`: Python dependencies
 
