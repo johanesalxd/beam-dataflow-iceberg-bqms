@@ -9,7 +9,8 @@ from typing import LiteralString
 # GCP Project Configuration
 GCP_PROJECT = 'johanesa-playground-326616'
 BQ_DATASET = 'my_iceberg_metastore'
-# GCS_WAREHOUSE_PATH = 'gs://johanesa-playground-326616-dataflow-bucket/iceberg-warehouse'
+GCS_BUCKET = 'gs://johanesa-playground-326616-dataflow-bucket'
+# GCS_WAREHOUSE_PATH = f'{GCS_BUCKET}/iceberg-warehouse'
 REGION = 'us-central1'
 
 # Table Configuration

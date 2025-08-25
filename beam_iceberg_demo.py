@@ -26,9 +26,10 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import managed
 
 # Import configuration
-from config import BQ_TABLE_NAME
 from config import BQ_MANAGED_TABLE_NAME
+from config import BQ_TABLE_NAME
 from config import GCP_PROJECT
+from config import GCS_BUCKET
 from config import REGION
 from config import SAMPLE_DATA
 
@@ -48,7 +49,7 @@ def write_to_bigquery():
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
     # Define BigQuery table schema
@@ -167,12 +168,15 @@ def copy_table_with_managed_io():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Copying data from {BQ_TABLE_NAME} to {BQ_MANAGED_TABLE_NAME}")
+        logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
 
-        # Read from original table using standard BigQueryIO
-        read_data = pipeline | 'ReadFromOriginalTable' >> bigquery.ReadFromBigQuery(
-            table=BQ_TABLE_NAME,
-            use_standard_sql=True
+        # Read from original table using Managed I/O
+        read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
+            managed.BIGQUERY,
+            config={
+                'table': BQ_TABLE_NAME,
+
+            }
         )
 
         # Write to new table using Managed I/O
@@ -180,43 +184,14 @@ def copy_table_with_managed_io():
         read_data | 'WriteWithManagedIO' >> managed.Write(
             managed.BIGQUERY,
             config={
-                'table': BQ_MANAGED_TABLE_NAME
+                'table': BQ_MANAGED_TABLE_NAME,
+                'create_disposition': 'CREATE_IF_NEEDED',
+                'write_disposition': 'WRITE_TRUNCATE'
             }
         )
 
-        logger.info("Copy table with Managed I/O pipeline completed successfully!")
-
-
-def read_with_managed_io():
-    """
-    Pipeline to read all data from BigQuery table using Managed I/O.
-    """
-    logger.info("Starting read with Managed I/O pipeline...")
-
-    pipeline_options = PipelineOptions([
-        f'--project={GCP_PROJECT}',
-        f'--region={REGION}',
-        '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
-    ])
-
-    with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
-
-        # Read from BigQuery using Managed I/O
-        read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
-            managed.BIGQUERY,
-            config={
-                'table': BQ_MANAGED_TABLE_NAME
-            }
-        )
-
-        # Print each record
-        read_data | 'PrintManagedRecords' >> beam.Map(
-            lambda record: logger.info(f"Managed I/O Record: {record}")
-        )
-
-        logger.info("Read with Managed I/O pipeline completed successfully!")
+        logger.info(
+            "Copy table with Managed I/O pipeline completed successfully!")
 
 
 def read_filtered_with_managed_io():
@@ -234,16 +209,24 @@ def read_filtered_with_managed_io():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading filtered data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
+        logger.info(
+            f"Reading filtered data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
 
         # Read from BigQuery with filter using Managed I/O
-        # Note: Managed I/O uses different filter syntax than SQL
+        # "created_at" need to be casted as STRING due to this error: TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
         filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
-                'table': BQ_MANAGED_TABLE_NAME,
                 'query': f"""
-                SELECT *
+                SELECT
+                    id,
+                    name,
+                    age,
+                    city,
+                    salary,
+                    is_active,
+                    department,
+                    CAST(created_at AS STRING) as created_at
                 FROM `{BQ_MANAGED_TABLE_NAME}`
                 WHERE is_active = true
                 AND department = 'Engineering'
@@ -254,10 +237,12 @@ def read_filtered_with_managed_io():
 
         # Print filtered records
         filtered_data | 'PrintFilteredManagedRecords' >> beam.Map(
-            lambda record: logger.info(f"Filtered Managed I/O Record: {record}")
+            lambda record: logger.info(
+                f"Filtered Managed I/O Record: {record}")
         )
 
-        logger.info("Filtered read with Managed I/O pipeline completed successfully!")
+        logger.info(
+            "Filtered read with Managed I/O pipeline completed successfully!")
 
 
 def run_demo():
@@ -270,7 +255,8 @@ def run_demo():
         logger.info("=" * 60)
 
         # Step 1: Write data to BigQuery using standard BigQueryIO
-        logger.info("\n1. Writing sample data to BigQuery table (BigQueryIO)...")
+        logger.info(
+            "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
         write_to_bigquery()
 
         # Step 2: Read all data using standard BigQueryIO
@@ -286,12 +272,8 @@ def run_demo():
         logger.info("\n4. Copying table data using Managed I/O...")
         copy_table_with_managed_io()
 
-        # Step 5: Read all data using Managed I/O
-        logger.info("\n5. Reading all data using Managed I/O...")
-        read_with_managed_io()
-
-        # Step 6: Read with filter using Managed I/O
-        logger.info("\n6. Reading filtered data using Managed I/O...")
+        # Step 5: Read with filter using Managed I/O
+        logger.info("\n5. Reading filtered data using Managed I/O...")
         read_filtered_with_managed_io()
 
         logger.info("\n" + "=" * 60)
