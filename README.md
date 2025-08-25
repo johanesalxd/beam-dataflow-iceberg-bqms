@@ -1,22 +1,21 @@
-# Apache Beam Iceberg Demo with BigLake Metastore
+# Apache Beam BigQuery Demo
 
-A demonstration of using Apache Beam with Dataflow Managed I/O to read from and write to Apache Iceberg tables using Google Cloud BigLake Metastore.
+A demonstration of using Apache Beam with standard BigQueryIO to read from and write to BigQuery tables. This serves as a foundation for future extensions to include Managed I/O for both BigQuery and Iceberg tables.
 
 ## What This Demo Does
 
-- **Write Pipeline**: Creates sample employee data and writes it to an Iceberg table
-- **Read Pipeline**: Reads all data from the Iceberg table
-- **Filtered Read Pipeline**: Demonstrates reading with SQL-like filters
+- **Write Pipeline**: Creates sample employee data and writes it to a BigQuery table
+- **Read Pipeline**: Reads all data from the BigQuery table
+- **Filtered Read Pipeline**: Demonstrates reading with SQL filters
 
 ## Prerequisites
 
 1. **GCP Project Setup**
-   - Enable BigQuery, Cloud Storage, and Dataflow APIs
+   - Enable BigQuery API
    - Set up Application Default Credentials: `gcloud auth application-default login`
 
 2. **Required Resources**
-   - BigQuery dataset (acts as Iceberg catalog)
-   - Cloud Storage bucket for Iceberg data files
+   - BigQuery dataset for storing the table
 
 ## Quick Start
 
@@ -31,7 +30,7 @@ A demonstration of using Apache Beam with Dataflow Managed I/O to read from and 
    Update `config.py` with your GCP project details:
    - `GCP_PROJECT`: Your Google Cloud project ID
    - `BQ_DATASET`: BigQuery dataset name
-   - `GCS_WAREHOUSE_PATH`: Cloud Storage path for data files
+   - `REGION`: GCP region for processing
 
 3. **Run the Demo**
    ```bash
@@ -42,35 +41,42 @@ A demonstration of using Apache Beam with Dataflow Managed I/O to read from and 
 
 The demo uses employee records with the following schema:
 - `id` (int), `name` (str), `age` (int), `city` (str)
-- `salary` (float), `is_active` (bool), `department` (str), `created_at` (str)
+- `salary` (float), `is_active` (bool), `department` (str), `created_at` (timestamp)
 
 ## Key Features Demonstrated
 
-- **Managed I/O**: Uses Apache Beam's Dataflow Managed I/O for Iceberg
-- **Schema-aware Processing**: Typed data structures with NamedTuple
-- **Partitioning**: Tables partitioned by department for better performance
-- **Filtering**: SQL-like predicates for selective data reading
+- **Standard BigQueryIO**: Uses Apache Beam's proven BigQuery connectors
+- **Simple Data Processing**: Direct dictionary handling without schema complications
+- **Table Management**: Automatic table creation with explicit schema definition
+- **SQL Filtering**: Standard SQL queries for selective data reading
 
 ## Expected Output
 
 ```
 ============================================================
-APACHE BEAM ICEBERG DEMO WITH BIGLAKE METASTORE
+APACHE BEAM BIGQUERY DEMO
 ============================================================
 
-1. Writing sample data to Iceberg table...
-2. Reading all data from Iceberg table...
+1. Writing sample data to BigQuery table...
+2. Reading all data from BigQuery table...
 3. Reading filtered data (active Engineering employees, age > 30)...
 
 DEMO COMPLETED SUCCESSFULLY!
 ============================================================
 ```
 
+## Future Extensions
+
+This implementation provides a solid foundation for adding:
+- **Managed I/O for BigQuery**: Using `managed.BIGQUERY`
+- **Managed I/O for Iceberg**: Using `managed.ICEBERG` with BigLake Metastore
+- **Dual Writing**: Writing to both BigQuery and Iceberg tables simultaneously
+
 ## Troubleshooting
 
 - **Authentication**: Ensure `gcloud auth application-default login` is run
-- **Permissions**: Need BigQuery Data Editor, Storage Object Admin, Dataflow Developer roles
-- **Resources**: Verify BigQuery dataset and Cloud Storage bucket exist
+- **Permissions**: Need BigQuery Data Editor role
+- **Dataset**: Verify BigQuery dataset exists in your project
 
 ## Files
 
@@ -80,5 +86,6 @@ DEMO COMPLETED SUCCESSFULLY!
 
 ## Resources
 
-- [Dataflow Managed I/O for Iceberg](https://cloud.google.com/dataflow/docs/guides/managed-io-iceberg)
+- [Apache Beam BigQuery I/O](https://beam.apache.org/documentation/io/built-in/google-bigquery/)
 - [Apache Beam Documentation](https://beam.apache.org/documentation/)
+- [Dataflow Managed I/O for Iceberg](https://cloud.google.com/dataflow/docs/guides/managed-io-iceberg) (for future reference)
