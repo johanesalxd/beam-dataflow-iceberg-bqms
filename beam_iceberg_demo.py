@@ -26,6 +26,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import managed
 
 # Import configuration
+from config import BQ_ICEBERG_TABLE_NAME
 from config import BQ_MANAGED_TABLE_NAME
 from config import BQ_TABLE_NAME
 from config import GCP_PROJECT
@@ -152,11 +153,58 @@ def read_with_filter():
         logger.info("Filtered read pipeline completed successfully!")
 
 
+def copy_table_iceberg():
+    """
+    Pipeline to copy data from BigQuery table to another BigQuery table
+    using standard BigQueryIO.
+    This demonstrates CTAS-like operation using BigQueryIO.
+    """
+    logger.info("Starting copy table with BigQueryIO pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+    ])
+
+    # Define BigQuery table schema (same as the original table)
+    table_schema = {
+        'fields': [
+            {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'age', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+            {'name': 'city', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'salary', 'type': 'FLOAT', 'mode': 'REQUIRED'},
+            {'name': 'is_active', 'type': 'BOOLEAN', 'mode': 'REQUIRED'},
+            {'name': 'department', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'created_at', 'type': 'TIMESTAMP', 'mode': 'REQUIRED'},
+        ]
+    }
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(f"Reading data from {BQ_TABLE_NAME} using BigQueryIO")
+
+        # Read from original table using standard BigQueryIO
+        read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
+            table=BQ_TABLE_NAME,
+            use_standard_sql=True
+        )
+
+        # Write to new table using standard BigQueryIO
+        read_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
+            table=BQ_ICEBERG_TABLE_NAME,
+            schema=table_schema
+        )
+
+        logger.info(
+            "Copy table with BigQueryIO pipeline completed successfully!")
+
+
 def copy_table_with_managed_io():
     """
-    Pipeline to copy data from BigQuery table (using BigQueryIO)
-    to another BigQuery table (using Managed I/O).
-    This demonstrates CTAS-like operation with different I/O methods.
+    Pipeline to copy data from BigQuery table to another BigQuery table using Managed I/O.
+    This demonstrates CTAS-like operation with Managed I/O.
     """
     logger.info("Starting copy table with Managed I/O pipeline...")
 
@@ -254,27 +302,31 @@ def run_demo():
         logger.info("APACHE BEAM BIGQUERY + MANAGED I/O DEMO")
         logger.info("=" * 60)
 
-        # Step 1: Write data to BigQuery using standard BigQueryIO
-        logger.info(
-            "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
-        write_to_bigquery()
+        # # Step 1: Write data to BigQuery using standard BigQueryIO
+        # logger.info(
+        #     "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
+        # write_to_bigquery()
 
-        # Step 2: Read all data using standard BigQueryIO
-        logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
-        read_from_bigquery()
+        # # Step 2: Read all data using standard BigQueryIO
+        # logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
+        # read_from_bigquery()
 
-        # Step 3: Read with filter using standard BigQueryIO
-        logger.info(
-            "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
-        read_with_filter()
+        # # Step 3: Read with filter using standard BigQueryIO
+        # logger.info(
+        #     "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
+        # read_with_filter()
 
-        # Step 4: Copy table using Managed I/O (CTAS-like operation)
-        logger.info("\n4. Copying table data using Managed I/O...")
-        copy_table_with_managed_io()
+        # # Step 4: Copy table using Managed I/O (CTAS-like operation)
+        # logger.info("\n4. Copying table data using Managed I/O...")
+        # copy_table_with_managed_io()
 
-        # Step 5: Read with filter using Managed I/O
-        logger.info("\n5. Reading filtered data using Managed I/O...")
-        read_filtered_with_managed_io()
+        # # Step 5: Read with filter using Managed I/O
+        # logger.info("\n5. Reading filtered data using Managed I/O...")
+        # read_filtered_with_managed_io()
+
+        # Step 6: Copy table using BigQueryI/O (CTAS-like operation) to Managed Iceberg
+        logger.info("\n6. Copying table data to Managed Iceberg Table...")
+        copy_table_iceberg()
 
         logger.info("\n" + "=" * 60)
         logger.info("DEMO COMPLETED SUCCESSFULLY!")
