@@ -1,16 +1,18 @@
 """
-Apache Beam BigQuery Demo (with future Iceberg support)
-======================================================
+Apache Beam BigQuery and Managed I/O Demo
+==========================================
 
-This demo shows how to:
-1. Write data to a BigQuery table using standard BigQueryIO
-2. Read data from the BigQuery table
-3. Apply filters when reading data
+This demo demonstrates 6 different Apache Beam pipelines:
 
-Future extensions will include:
-- Managed I/O for BigQuery
-- Managed I/O for Iceberg tables
-- Dual writing capability
+Standard BigQueryIO operations:
+1. Write sample data to BigQuery table
+2. Read all data from BigQuery table
+3. Read filtered data with SQL queries
+4. Copy table data to BigQuery Iceberg table
+
+Managed I/O operations:
+5. Copy table data using Managed I/O
+6. Read filtered data using Managed I/O
 
 Requirements:
 - GCP project with BigQuery enabled
@@ -40,10 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def write_to_bigquery():
-    """
-    Pipeline to write sample data to BigQuery table.
-    Creates the table if it doesn't exist.
-    """
+    """Write sample data to BigQuery table."""
     logger.info("Starting write pipeline...")
 
     pipeline_options = PipelineOptions([
@@ -53,7 +52,6 @@ def write_to_bigquery():
         f'--temp_location={GCS_BUCKET}/temp',
     ])
 
-    # Define BigQuery table schema
     table_schema = {
         'fields': [
             {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
@@ -70,10 +68,8 @@ def write_to_bigquery():
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Writing {len(SAMPLE_DATA)} records to {BQ_TABLE_NAME}")
 
-        # Create input data - use dictionaries directly (no schema complications)
         input_data = pipeline | 'CreateSampleData' >> beam.Create(SAMPLE_DATA)
 
-        # Write to BigQuery using standard BigQueryIO
         input_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
             table=BQ_TABLE_NAME,
             schema=table_schema,
@@ -85,28 +81,24 @@ def write_to_bigquery():
 
 
 def read_from_bigquery():
-    """
-    Pipeline to read all data from BigQuery table.
-    """
+    """Read all data from BigQuery table."""
     logger.info("Starting read pipeline...")
 
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME}")
 
-        # Read from BigQuery using standard BigQueryIO
         read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
             table=BQ_TABLE_NAME,
             use_standard_sql=True
         )
 
-        # Print each record
         read_data | 'PrintRecords' >> beam.Map(
             lambda record: logger.info(f"Record: {record}")
         )
@@ -115,23 +107,19 @@ def read_from_bigquery():
 
 
 def read_with_filter():
-    """
-    Pipeline to read filtered data from BigQuery table.
-    Example: Read only active employees in Engineering department.
-    """
+    """Read filtered data from BigQuery table (active Engineering employees, age > 30)."""
     logger.info("Starting filtered read pipeline...")
 
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading filtered data from {BQ_TABLE_NAME}")
 
-        # Read from BigQuery with SQL filter
         query = f"""
         SELECT *
         FROM `{BQ_TABLE_NAME}`
@@ -145,7 +133,6 @@ def read_with_filter():
             use_standard_sql=True
         )
 
-        # Print filtered records
         filtered_data | 'PrintFilteredRecords' >> beam.Map(
             lambda record: logger.info(f"Filtered Record: {record}")
         )
@@ -154,21 +141,16 @@ def read_with_filter():
 
 
 def copy_table_iceberg():
-    """
-    Pipeline to copy data from BigQuery table to another BigQuery table
-    using standard BigQueryIO.
-    This demonstrates CTAS-like operation using BigQueryIO.
-    """
+    """Copy data from BigQuery table to another BigQuery table using standard BigQueryIO."""
     logger.info("Starting copy table with BigQueryIO pipeline...")
 
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
-    # Define BigQuery table schema (same as the original table)
     table_schema = {
         'fields': [
             {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
@@ -185,13 +167,11 @@ def copy_table_iceberg():
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME} using BigQueryIO")
 
-        # Read from original table using standard BigQueryIO
         read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
             table=BQ_TABLE_NAME,
             use_standard_sql=True
         )
 
-        # Write to new table using standard BigQueryIO
         read_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
             table=BQ_ICEBERG_TABLE_NAME,
             schema=table_schema
@@ -202,32 +182,26 @@ def copy_table_iceberg():
 
 
 def copy_table_with_managed_io():
-    """
-    Pipeline to copy data from BigQuery table to another BigQuery table using Managed I/O.
-    This demonstrates CTAS-like operation with Managed I/O.
-    """
+    """Copy data from BigQuery table to another BigQuery table using Managed I/O."""
     logger.info("Starting copy table with Managed I/O pipeline...")
 
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
 
-        # Read from original table using Managed I/O
         read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
                 'table': BQ_TABLE_NAME,
-
             }
         )
 
-        # Write to new table using Managed I/O
         # Managed I/O handles schema conversion automatically
         read_data | 'WriteWithManagedIO' >> managed.Write(
             managed.BIGQUERY,
@@ -243,25 +217,21 @@ def copy_table_with_managed_io():
 
 
 def read_filtered_with_managed_io():
-    """
-    Pipeline to read filtered data from BigQuery table using Managed I/O.
-    Example: Read only active employees in Engineering department.
-    """
+    """Read filtered data from BigQuery table using Managed I/O."""
     logger.info("Starting filtered read with Managed I/O pipeline...")
 
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
-        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+        f'--temp_location={GCS_BUCKET}/temp',
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(
             f"Reading filtered data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
 
-        # Read from BigQuery with filter using Managed I/O
-        # "created_at" need to be casted as STRING due to this error: TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
+        # Note: created_at is cast as STRING to avoid TypeError with Managed I/O
         filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
@@ -283,7 +253,6 @@ def read_filtered_with_managed_io():
             }
         )
 
-        # Print filtered records
         filtered_data | 'PrintFilteredManagedRecords' >> beam.Map(
             lambda record: logger.info(
                 f"Filtered Managed I/O Record: {record}")
@@ -294,37 +263,29 @@ def read_filtered_with_managed_io():
 
 
 def run_demo():
-    """
-    Run the complete demo: BigQueryIO + Managed I/O demonstrations.
-    """
+    """Run the complete demo: BigQueryIO + Managed I/O demonstrations."""
     try:
         logger.info("=" * 60)
         logger.info("APACHE BEAM BIGQUERY + MANAGED I/O DEMO")
         logger.info("=" * 60)
 
-        # # Step 1: Write data to BigQuery using standard BigQueryIO
-        # logger.info(
-        #     "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
-        # write_to_bigquery()
+        logger.info(
+            "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
+        write_to_bigquery()
 
-        # # Step 2: Read all data using standard BigQueryIO
-        # logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
-        # read_from_bigquery()
+        logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
+        read_from_bigquery()
 
-        # # Step 3: Read with filter using standard BigQueryIO
-        # logger.info(
-        #     "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
-        # read_with_filter()
+        logger.info(
+            "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
+        read_with_filter()
 
-        # # Step 4: Copy table using Managed I/O (CTAS-like operation)
-        # logger.info("\n4. Copying table data using Managed I/O...")
-        # copy_table_with_managed_io()
+        logger.info("\n4. Copying table data using Managed I/O...")
+        copy_table_with_managed_io()
 
-        # # Step 5: Read with filter using Managed I/O
-        # logger.info("\n5. Reading filtered data using Managed I/O...")
-        # read_filtered_with_managed_io()
+        logger.info("\n5. Reading filtered data using Managed I/O...")
+        read_filtered_with_managed_io()
 
-        # Step 6: Copy table using BigQueryI/O (CTAS-like operation) to Managed Iceberg
         logger.info("\n6. Copying table data to Managed Iceberg Table...")
         copy_table_iceberg()
 
