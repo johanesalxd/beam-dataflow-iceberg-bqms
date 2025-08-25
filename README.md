@@ -91,7 +91,7 @@ All BigQueryIO and Managed I/O operations completed!
 
 The demo creates three BigQuery tables:
 - **Standard Table** (`BQ_TABLE_NAME`): Original data written with BigQueryIO
-- **Managed Table** (`BQ_MANAGED_TABLE_NAME`): Copy created with Managed I/O
+- **Managed Table** (`BQ_MANAGEDIO_TABLE_NAME`): Copy created with Managed I/O
 - **Iceberg Table** (`BQ_ICEBERG_TABLE_NAME`): Copy created with BigQueryIO
 
 ## BigQueryIO vs Managed I/O

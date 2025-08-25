@@ -2,7 +2,7 @@
 Apache Beam BigQuery and Managed I/O Demo
 ==========================================
 
-This demo demonstrates 6 different Apache Beam pipelines:
+This demo demonstrates 8 different Apache Beam pipelines:
 
 Standard BigQueryIO operations:
 1. Write sample data to BigQuery table
@@ -13,6 +13,8 @@ Standard BigQueryIO operations:
 Managed I/O operations:
 5. Copy table data using Managed I/O
 6. Read filtered data using Managed I/O
+7. Copy table data to Iceberg using Managed I/O
+8. Read filtered data from Iceberg using Managed I/O
 
 Requirements:
 - GCP project with BigQuery enabled
@@ -29,8 +31,10 @@ from apache_beam.transforms import managed
 from google.cloud import bigquery as bq_client
 
 # Import configuration
+from config import BQ_DATASET
+from config import BQ_ICEBERG_MANAGEDIO_TABLE_NAME
 from config import BQ_ICEBERG_TABLE_NAME
-from config import BQ_MANAGED_TABLE_NAME
+from config import BQ_MANAGEDIO_TABLE_NAME
 from config import BQ_TABLE_NAME
 from config import GCP_PROJECT
 from config import GCS_BUCKET
@@ -212,7 +216,7 @@ def copy_table_with_managed_io():
         read_data | 'WriteWithManagedIO' >> managed.Write(
             managed.BIGQUERY,
             config={
-                'table': BQ_MANAGED_TABLE_NAME,
+                'table': BQ_MANAGEDIO_TABLE_NAME,
                 'create_disposition': 'CREATE_IF_NEEDED',
                 'write_disposition': 'WRITE_TRUNCATE'
             }
@@ -235,7 +239,7 @@ def read_filtered_with_managed_io():
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(
-            f"Reading filtered data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
+            f"Reading filtered data from {BQ_MANAGEDIO_TABLE_NAME} using Managed I/O")
 
         # Note: created_at is cast as STRING to avoid TypeError with Managed I/O
         filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
@@ -251,7 +255,7 @@ def read_filtered_with_managed_io():
                     is_active,
                     department,
                     CAST(created_at AS STRING) as created_at
-                FROM `{BQ_MANAGED_TABLE_NAME}`
+                FROM `{BQ_MANAGEDIO_TABLE_NAME}`
                 WHERE is_active = true
                 AND department = 'Engineering'
                 AND age > 30
@@ -266,6 +270,84 @@ def read_filtered_with_managed_io():
 
         logger.info(
             "Filtered read with Managed I/O pipeline completed successfully!")
+
+
+def copy_table_to_iceberg_with_managed_io():
+    """Copy data from BigQuery table to Iceberg table using Managed I/O."""
+    logger.info("Starting copy table to Iceberg with Managed I/O pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        f'--temp_location={GCS_BUCKET}/temp',
+    ])
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
+
+        read_data = pipeline | 'ReadFromBigQueryManagedIO' >> managed.Read(
+            managed.BIGQUERY,
+            config={
+                'table': BQ_TABLE_NAME,
+            }
+        )
+
+        # Simple catalog configuration
+        catalog_config = {
+            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq_managedio'
+        }
+
+        # Managed I/O handles table creation and schema conversion
+        read_data | 'WriteToIcebergManagedIO' >> managed.Write(
+            managed.ICEBERG,
+            config={
+                'table': BQ_ICEBERG_MANAGEDIO_TABLE_NAME,
+                'catalog_name': BQ_DATASET,
+                'catalog_properties': catalog_config
+            }
+        )
+
+        logger.info(
+            "Copy table to Iceberg with Managed I/O pipeline completed successfully!")
+
+
+def read_from_iceberg_with_managed_io():
+    """Read filtered data from Iceberg table using Managed I/O."""
+    logger.info("Starting read from Iceberg with Managed I/O pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        f'--temp_location={GCS_BUCKET}/temp',
+    ])
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(
+            f"Reading filtered data from {BQ_ICEBERG_MANAGEDIO_TABLE_NAME} using Managed I/O")
+
+        # Simple catalog configuration
+        catalog_config = {
+            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq_managedio'
+        }
+
+        filtered_data = pipeline | 'ReadFromIcebergManagedIO' >> managed.Read(
+            managed.ICEBERG,
+            config={
+                'table': BQ_ICEBERG_MANAGEDIO_TABLE_NAME,
+                'catalog_name': BQ_DATASET,
+                'catalog_properties': catalog_config,
+                'filter': "is_active = true AND department = 'Engineering' AND age > 30"
+            }
+        )
+
+        filtered_data | 'PrintIcebergManagedRecords' >> beam.Map(
+            lambda record: logger.info(f"Iceberg Managed I/O Record: {record}")
+        )
+
+        logger.info(
+            "Read from Iceberg with Managed I/O pipeline completed successfully!")
 
 
 def run_demo():
@@ -294,6 +376,13 @@ def run_demo():
 
         logger.info("\n6. Copying table data to Managed Iceberg Table...")
         copy_table_iceberg()
+
+        logger.info("\n7. Copying table to Iceberg using Managed I/O...")
+        copy_table_to_iceberg_with_managed_io()
+
+        logger.info(
+            "\n8. Reading filtered data from Iceberg using Managed I/O...")
+        read_from_iceberg_with_managed_io()
 
         logger.info("\n" + "=" * 60)
         logger.info("DEMO COMPLETED SUCCESSFULLY!")

@@ -16,10 +16,12 @@ REGION = 'us-central1'
 # Table Configuration
 # BigQuery table (standard)
 BQ_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table'
-# BigQuery table for Managed I/O copy
-BQ_MANAGED_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_managed'
+# BigQuery table for Managed I/O
+BQ_MANAGEDIO_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_managedio'
 # BigQuery Iceberg table (standard)
 BQ_ICEBERG_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_iceberg'
+# BigQuery table for Managed I/O Iceberg
+BQ_ICEBERG_MANAGEDIO_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_iceberg_managedio'
 
 # Rich sample data for demonstration
 SAMPLE_DATA = [
