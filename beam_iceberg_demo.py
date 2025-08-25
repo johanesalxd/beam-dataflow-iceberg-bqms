@@ -23,9 +23,11 @@ import logging
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms import managed
 
 # Import configuration
 from config import BQ_TABLE_NAME
+from config import BQ_MANAGED_TABLE_NAME
 from config import GCP_PROJECT
 from config import REGION
 from config import SAMPLE_DATA
@@ -149,30 +151,152 @@ def read_with_filter():
         logger.info("Filtered read pipeline completed successfully!")
 
 
+def copy_table_with_managed_io():
+    """
+    Pipeline to copy data from BigQuery table (using BigQueryIO)
+    to another BigQuery table (using Managed I/O).
+    This demonstrates CTAS-like operation with different I/O methods.
+    """
+    logger.info("Starting copy table with Managed I/O pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+    ])
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(f"Copying data from {BQ_TABLE_NAME} to {BQ_MANAGED_TABLE_NAME}")
+
+        # Read from original table using standard BigQueryIO
+        read_data = pipeline | 'ReadFromOriginalTable' >> bigquery.ReadFromBigQuery(
+            table=BQ_TABLE_NAME,
+            use_standard_sql=True
+        )
+
+        # Write to new table using Managed I/O
+        # Managed I/O handles schema conversion automatically
+        read_data | 'WriteWithManagedIO' >> managed.Write(
+            managed.BIGQUERY,
+            config={
+                'table': BQ_MANAGED_TABLE_NAME
+            }
+        )
+
+        logger.info("Copy table with Managed I/O pipeline completed successfully!")
+
+
+def read_with_managed_io():
+    """
+    Pipeline to read all data from BigQuery table using Managed I/O.
+    """
+    logger.info("Starting read with Managed I/O pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+    ])
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(f"Reading data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
+
+        # Read from BigQuery using Managed I/O
+        read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
+            managed.BIGQUERY,
+            config={
+                'table': BQ_MANAGED_TABLE_NAME
+            }
+        )
+
+        # Print each record
+        read_data | 'PrintManagedRecords' >> beam.Map(
+            lambda record: logger.info(f"Managed I/O Record: {record}")
+        )
+
+        logger.info("Read with Managed I/O pipeline completed successfully!")
+
+
+def read_filtered_with_managed_io():
+    """
+    Pipeline to read filtered data from BigQuery table using Managed I/O.
+    Example: Read only active employees in Engineering department.
+    """
+    logger.info("Starting filtered read with Managed I/O pipeline...")
+
+    pipeline_options = PipelineOptions([
+        f'--project={GCP_PROJECT}',
+        f'--region={REGION}',
+        '--runner=DirectRunner',
+        '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
+    ])
+
+    with beam.Pipeline(options=pipeline_options) as pipeline:
+        logger.info(f"Reading filtered data from {BQ_MANAGED_TABLE_NAME} using Managed I/O")
+
+        # Read from BigQuery with filter using Managed I/O
+        # Note: Managed I/O uses different filter syntax than SQL
+        filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
+            managed.BIGQUERY,
+            config={
+                'table': BQ_MANAGED_TABLE_NAME,
+                'query': f"""
+                SELECT *
+                FROM `{BQ_MANAGED_TABLE_NAME}`
+                WHERE is_active = true
+                AND department = 'Engineering'
+                AND age > 30
+                """
+            }
+        )
+
+        # Print filtered records
+        filtered_data | 'PrintFilteredManagedRecords' >> beam.Map(
+            lambda record: logger.info(f"Filtered Managed I/O Record: {record}")
+        )
+
+        logger.info("Filtered read with Managed I/O pipeline completed successfully!")
+
+
 def run_demo():
     """
-    Run the complete demo: write, read, and filtered read.
+    Run the complete demo: BigQueryIO + Managed I/O demonstrations.
     """
     try:
         logger.info("=" * 60)
-        logger.info("APACHE BEAM BIGQUERY DEMO")
+        logger.info("APACHE BEAM BIGQUERY + MANAGED I/O DEMO")
         logger.info("=" * 60)
 
-        # Step 1: Write data to BigQuery
-        logger.info("\n1. Writing sample data to BigQuery table...")
+        # Step 1: Write data to BigQuery using standard BigQueryIO
+        logger.info("\n1. Writing sample data to BigQuery table (BigQueryIO)...")
         write_to_bigquery()
 
-        # Step 2: Read all data
-        logger.info("\n2. Reading all data from BigQuery table...")
+        # Step 2: Read all data using standard BigQueryIO
+        logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
         read_from_bigquery()
 
-        # Step 3: Read with filter
+        # Step 3: Read with filter using standard BigQueryIO
         logger.info(
-            "\n3. Reading filtered data (active Engineering employees, age > 30)...")
+            "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
         read_with_filter()
+
+        # Step 4: Copy table using Managed I/O (CTAS-like operation)
+        logger.info("\n4. Copying table data using Managed I/O...")
+        copy_table_with_managed_io()
+
+        # Step 5: Read all data using Managed I/O
+        logger.info("\n5. Reading all data using Managed I/O...")
+        read_with_managed_io()
+
+        # Step 6: Read with filter using Managed I/O
+        logger.info("\n6. Reading filtered data using Managed I/O...")
+        read_filtered_with_managed_io()
 
         logger.info("\n" + "=" * 60)
         logger.info("DEMO COMPLETED SUCCESSFULLY!")
+        logger.info("All BigQueryIO and Managed I/O operations completed!")
         logger.info("=" * 60)
 
     except Exception as e:
