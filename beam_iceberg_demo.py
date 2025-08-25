@@ -26,6 +26,7 @@ import apache_beam as beam
 from apache_beam.io.gcp import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import managed
+from google.cloud import bigquery as bq_client
 
 # Import configuration
 from config import BQ_ICEBERG_TABLE_NAME
@@ -52,19 +53,6 @@ def write_to_bigquery():
         f'--temp_location={GCS_BUCKET}/temp',
     ])
 
-    table_schema = {
-        'fields': [
-            {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
-            {'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'age', 'type': 'INTEGER', 'mode': 'REQUIRED'},
-            {'name': 'city', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'salary', 'type': 'FLOAT', 'mode': 'REQUIRED'},
-            {'name': 'is_active', 'type': 'BOOLEAN', 'mode': 'REQUIRED'},
-            {'name': 'department', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'created_at', 'type': 'TIMESTAMP', 'mode': 'REQUIRED'},
-        ]
-    }
-
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Writing {len(SAMPLE_DATA)} records to {BQ_TABLE_NAME}")
 
@@ -72,7 +60,6 @@ def write_to_bigquery():
 
         input_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
             table=BQ_TABLE_NAME,
-            schema=table_schema,
             create_disposition=bigquery.BigQueryDisposition.CREATE_IF_NEEDED,
             write_disposition=bigquery.BigQueryDisposition.WRITE_TRUNCATE
         )
@@ -141,28 +128,48 @@ def read_with_filter():
 
 
 def copy_table_iceberg():
-    """Copy data from BigQuery table to another BigQuery table using standard BigQueryIO."""
-    logger.info("Starting copy table with BigQueryIO pipeline...")
+    """Copy data from BigQuery table to BigQuery Iceberg table."""
+    logger.info("Starting copy table to Iceberg pipeline...")
 
+    # Initialize BigQuery client for table management
+    client = bq_client.Client(project=GCP_PROJECT)
+
+    # Create Iceberg table if not exists
+    create_table_sql = f"""
+    CREATE TABLE IF NOT EXISTS `{BQ_ICEBERG_TABLE_NAME}` (
+        id INTEGER,
+        name STRING,
+        age INTEGER,
+        city STRING,
+        salary FLOAT64,
+        is_active BOOLEAN,
+        department STRING,
+        created_at TIMESTAMP
+    )
+    WITH CONNECTION DEFAULT
+    OPTIONS (
+        file_format = 'PARQUET',
+        table_format = 'ICEBERG',
+        storage_uri = '{GCS_BUCKET}/managed_iceberg_on_bq'
+    )
+    """
+
+    logger.info(
+        f"Creating Iceberg table if not exists: {BQ_ICEBERG_TABLE_NAME}")
+    client.query(create_table_sql).result()
+
+    # Delete existing data from Iceberg table
+    delete_sql = f"DELETE FROM `{BQ_ICEBERG_TABLE_NAME}` WHERE TRUE"
+    logger.info(f"Clearing existing data from {BQ_ICEBERG_TABLE_NAME}")
+    client.query(delete_sql).result()
+
+    # Run Beam pipeline to copy data
     pipeline_options = PipelineOptions([
         f'--project={GCP_PROJECT}',
         f'--region={REGION}',
         '--runner=DirectRunner',
         f'--temp_location={GCS_BUCKET}/temp',
     ])
-
-    table_schema = {
-        'fields': [
-            {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
-            {'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'age', 'type': 'INTEGER', 'mode': 'REQUIRED'},
-            {'name': 'city', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'salary', 'type': 'FLOAT', 'mode': 'REQUIRED'},
-            {'name': 'is_active', 'type': 'BOOLEAN', 'mode': 'REQUIRED'},
-            {'name': 'department', 'type': 'STRING', 'mode': 'REQUIRED'},
-            {'name': 'created_at', 'type': 'TIMESTAMP', 'mode': 'REQUIRED'},
-        ]
-    }
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME} using BigQueryIO")
@@ -172,13 +179,12 @@ def copy_table_iceberg():
             use_standard_sql=True
         )
 
-        read_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
+        read_data | 'WriteToIcebergTable' >> bigquery.WriteToBigQuery(
             table=BQ_ICEBERG_TABLE_NAME,
-            schema=table_schema
+            write_disposition=bigquery.BigQueryDisposition.WRITE_APPEND
         )
 
-        logger.info(
-            "Copy table with BigQueryIO pipeline completed successfully!")
+        logger.info("Copy table to Iceberg pipeline completed successfully!")
 
 
 def copy_table_with_managed_io():

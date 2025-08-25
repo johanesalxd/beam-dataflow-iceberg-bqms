@@ -104,9 +104,39 @@ The demo creates three BigQuery tables:
 | Table Operations | Full control | Streamlined operations |
 | Use Case | Production workloads | Rapid prototyping |
 
+## BigQuery Iceberg Table Limitations
+
+The demo includes a special implementation for copying data to BigQuery Iceberg tables due to specific limitations:
+
+### Limitations
+- **No TRUNCATE Support**: Iceberg tables don't support TRUNCATE operations
+- **Limited Write Dispositions**: Cannot use `CREATE_IF_NEEDED` or `WRITE_TRUNCATE` with BigQueryIO when writing to Iceberg tables
+- **Manual Table Management**: Must use SQL DDL statements to create and manage Iceberg tables
+
+### Solution Implemented
+The `copy_table_iceberg()` function works around these limitations by:
+
+1. **Manual Table Creation**: Uses `CREATE TABLE IF NOT EXISTS` with Iceberg-specific options:
+   ```sql
+   CREATE TABLE IF NOT EXISTS `table_name` (...)
+   WITH CONNECTION DEFAULT
+   OPTIONS (
+       file_format = 'PARQUET',
+       table_format = 'ICEBERG',
+       storage_uri = 'gs://bucket/path'
+   )
+   ```
+
+2. **Data Clearing**: Executes `DELETE FROM table WHERE TRUE` to clear existing data (equivalent to TRUNCATE)
+
+3. **Safe Writing**: Uses `WRITE_APPEND` disposition since the table is freshly cleared
+
+This approach ensures the Iceberg table behaves like a standard table with TRUNCATE functionality while respecting BigQuery Iceberg limitations.
+
 ## Known Issues
 
 - **Managed I/O Timestamps**: The `created_at` field must be cast as STRING in Managed I/O queries to avoid `TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'`
+- **Iceberg Table Dependencies**: Requires `google-cloud-bigquery` client library for SQL execution
 
 ## Troubleshooting
 
