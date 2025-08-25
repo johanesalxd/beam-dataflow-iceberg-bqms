@@ -21,7 +21,7 @@ BQ_MANAGEDIO_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_manag
 # BigQuery Iceberg table (standard)
 BQ_ICEBERG_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_iceberg'
 # BigQuery table for Managed I/O Iceberg
-BQ_ICEBERG_MANAGEDIO_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table_iceberg_managedio'
+BQ_ICEBERG_MANAGEDIO_TABLE_NAME = f'{BQ_DATASET}.employee_demo_table_iceberg_managedio'
 
 # Rich sample data for demonstration
 SAMPLE_DATA = [

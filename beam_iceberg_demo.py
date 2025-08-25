@@ -205,6 +205,7 @@ def copy_table_with_managed_io():
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
 
+        # Notes (1/3): this direct table access configuration will causing an issue on timestamp casting which you'll see below
         read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
@@ -241,7 +242,7 @@ def read_filtered_with_managed_io():
         logger.info(
             f"Reading filtered data from {BQ_MANAGEDIO_TABLE_NAME} using Managed I/O")
 
-        # Note: created_at is cast as STRING to avoid TypeError with Managed I/O
+        # Notes (2/3): created_at is cast as STRING to avoid TypeError because of the direct table access above
         filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
@@ -286,16 +287,31 @@ def copy_table_to_iceberg_with_managed_io():
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
 
+        # Notes (3/3): this one seems the correct way to read and avoid error like above
         read_data = pipeline | 'ReadFromBigQueryManagedIO' >> managed.Read(
             managed.BIGQUERY,
             config={
-                'table': BQ_TABLE_NAME,
+                'query': f"""
+                SELECT
+                    id,
+                    name,
+                    age,
+                    city,
+                    salary,
+                    is_active,
+                    department,
+                    CAST(created_at AS STRING) as created_at
+                FROM `{BQ_MANAGEDIO_TABLE_NAME}`
+                """
             }
         )
 
         # Simple catalog configuration
         catalog_config = {
-            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq_managedio'
+            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq',
+            'catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
+            'gcp_project': GCP_PROJECT,
+            'location': REGION
         }
 
         # Managed I/O handles table creation and schema conversion
@@ -303,7 +319,7 @@ def copy_table_to_iceberg_with_managed_io():
             managed.ICEBERG,
             config={
                 'table': BQ_ICEBERG_MANAGEDIO_TABLE_NAME,
-                'catalog_name': BQ_DATASET,
+                'catalog_name': 'iceberg_on_bq',
                 'catalog_properties': catalog_config
             }
         )
@@ -329,16 +345,19 @@ def read_from_iceberg_with_managed_io():
 
         # Simple catalog configuration
         catalog_config = {
-            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq_managedio'
+            'warehouse': f'{GCS_BUCKET}/iceberg_on_bq',
+            'catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
+            'gcp_project': GCP_PROJECT,
+            'location': REGION
         }
 
         filtered_data = pipeline | 'ReadFromIcebergManagedIO' >> managed.Read(
             managed.ICEBERG,
             config={
                 'table': BQ_ICEBERG_MANAGEDIO_TABLE_NAME,
-                'catalog_name': BQ_DATASET,
+                'catalog_name': 'iceberg_on_bq',
                 'catalog_properties': catalog_config,
-                'filter': "is_active = true AND department = 'Engineering' AND age > 30"
+                'filter': "is_active = true"
             }
         )
 
@@ -358,14 +377,15 @@ def run_demo():
         logger.info("=" * 60)
 
         logger.info(
-            "\n1. Writing sample data to BigQuery table (BigQueryIO)...")
+            "\n1. Writing sample data to BigQuery table using BigQueryIO...")
         write_to_bigquery()
 
-        logger.info("\n2. Reading all data from BigQuery table (BigQueryIO)...")
+        logger.info(
+            "\n2. Reading all data from BigQuery table using BigQueryIO...")
         read_from_bigquery()
 
         logger.info(
-            "\n3. Reading filtered data (BigQueryIO, active Engineering employees, age > 30)...")
+            "\n3. Reading filtered data using BigQueryIO...")
         read_with_filter()
 
         logger.info("\n4. Copying table data using Managed I/O...")
@@ -374,14 +394,16 @@ def run_demo():
         logger.info("\n5. Reading filtered data using Managed I/O...")
         read_filtered_with_managed_io()
 
-        logger.info("\n6. Copying table data to Managed Iceberg Table...")
+        logger.info(
+            "\n6. Copying table data to BigQuery Managed Iceberg Table using BigQueryIO...")
         copy_table_iceberg()
 
-        logger.info("\n7. Copying table to Iceberg using Managed I/O...")
+        logger.info(
+            "\n7. Copying table to BigLake Iceberg Table using Managed I/O...")
         copy_table_to_iceberg_with_managed_io()
 
         logger.info(
-            "\n8. Reading filtered data from Iceberg using Managed I/O...")
+            "\n8. Reading filtered data from BigLake Iceberg Table using Managed I/O...")
         read_from_iceberg_with_managed_io()
 
         logger.info("\n" + "=" * 60)
