@@ -4,22 +4,17 @@ Configured for johanesa-playground-326616 project.
 """
 
 from datetime import datetime
+from typing import LiteralString
 
 # GCP Project Configuration
 GCP_PROJECT = 'johanesa-playground-326616'
 BQ_DATASET = 'my_iceberg_metastore'
-GCS_WAREHOUSE_PATH = 'gs://johanesa-playground-326616-dataflow-bucket/iceberg-warehouse'
+# GCS_WAREHOUSE_PATH = 'gs://johanesa-playground-326616-dataflow-bucket/iceberg-warehouse'
 REGION = 'us-central1'
 
-# Iceberg Table Configuration
-TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table'
-
-# Catalog Configuration for BigLake Metastore
-CATALOG_NAME = 'bq_catalog'
-CATALOG_PROPERTIES = {
-    'catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryCatalog',
-    'warehouse': GCS_WAREHOUSE_PATH,
-}
+# Table Configuration
+# BigQuery table (standard)
+BQ_TABLE_NAME = f'{GCP_PROJECT}.{BQ_DATASET}.employee_demo_table'
 
 # Rich sample data for demonstration
 SAMPLE_DATA = [

@@ -1,64 +1,43 @@
 """
-Apache Beam Iceberg Demo with BigLake Metastore
-===============================================
+Apache Beam BigQuery Demo (with future Iceberg support)
+======================================================
 
 This demo shows how to:
-1. Write data to an Iceberg table using BigLake metastore
-2. Read data from the Iceberg table
+1. Write data to a BigQuery table using standard BigQueryIO
+2. Read data from the BigQuery table
 3. Apply filters when reading data
 
+Future extensions will include:
+- Managed I/O for BigQuery
+- Managed I/O for Iceberg tables
+- Dual writing capability
+
 Requirements:
-- GCP project with BigQuery and Cloud Storage enabled
+- GCP project with BigQuery enabled
 - Application Default Credentials configured
 - Required Python packages installed (see requirements.txt)
 """
 
 import logging
+
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms import managed
-from typing import NamedTuple
 
 # Import configuration
-from config import (
-    GCP_PROJECT, TABLE_NAME, CATALOG_NAME, CATALOG_PROPERTIES,
-    SAMPLE_DATA, REGION
-)
+from config import BQ_TABLE_NAME
+from config import GCP_PROJECT
+from config import REGION
+from config import SAMPLE_DATA
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Define a typed schema using NamedTuple
-class EmployeeRecord(NamedTuple):
-    id: int
-    name: str
-    age: int
-    city: str
-    salary: float
-    is_active: bool
-    department: str
-    created_at: str
-
-
-def dict_to_employee_record(data_dict):
-    """Convert dictionary to typed EmployeeRecord."""
-    return EmployeeRecord(
-        id=data_dict['id'],
-        name=data_dict['name'],
-        age=data_dict['age'],
-        city=data_dict['city'],
-        salary=data_dict['salary'],
-        is_active=data_dict['is_active'],
-        department=data_dict['department'],
-        created_at=data_dict['created_at']
-    )
-
-
-def write_to_iceberg():
+def write_to_bigquery():
     """
-    Pipeline to write sample data to Iceberg table.
+    Pipeline to write sample data to BigQuery table.
     Creates the table if it doesn't exist.
     """
     logger.info("Starting write pipeline...")
@@ -70,32 +49,40 @@ def write_to_iceberg():
         '--temp_location=gs://johanesa-playground-326616-dataflow-bucket/temp',
     ])
 
+    # Define BigQuery table schema
+    table_schema = {
+        'fields': [
+            {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'age', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+            {'name': 'city', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'salary', 'type': 'FLOAT', 'mode': 'REQUIRED'},
+            {'name': 'is_active', 'type': 'BOOLEAN', 'mode': 'REQUIRED'},
+            {'name': 'department', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'created_at', 'type': 'TIMESTAMP', 'mode': 'REQUIRED'},
+        ]
+    }
+
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Writing {len(SAMPLE_DATA)} records to {TABLE_NAME}")
+        logger.info(f"Writing {len(SAMPLE_DATA)} records to {BQ_TABLE_NAME}")
 
-        # Create input data and convert to typed records with explicit schema
-        input_data = (pipeline
-                     | 'CreateSampleData' >> beam.Create(SAMPLE_DATA)
-                     | 'ConvertToTypedRecords' >> beam.Map(dict_to_employee_record).with_output_types(EmployeeRecord))
+        # Create input data - use dictionaries directly (no schema complications)
+        input_data = pipeline | 'CreateSampleData' >> beam.Create(SAMPLE_DATA)
 
-        # Write to Iceberg using Managed I/O
-        _ = input_data | 'WriteToIceberg' >> managed.Write(
-            managed.ICEBERG,
-            config={
-                'table': TABLE_NAME,
-                'catalog_name': CATALOG_NAME,
-                'catalog_properties': CATALOG_PROPERTIES,
-                # Partition by department for better query performance
-                'partition_fields': ['department']
-            }
+        # Write to BigQuery using standard BigQueryIO
+        input_data | 'WriteToBigQuery' >> bigquery.WriteToBigQuery(
+            table=BQ_TABLE_NAME,
+            schema=table_schema,
+            create_disposition=bigquery.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=bigquery.BigQueryDisposition.WRITE_TRUNCATE
         )
 
         logger.info("Write pipeline completed successfully!")
 
 
-def read_from_iceberg():
+def read_from_bigquery():
     """
-    Pipeline to read all data from Iceberg table.
+    Pipeline to read all data from BigQuery table.
     """
     logger.info("Starting read pipeline...")
 
@@ -107,16 +94,12 @@ def read_from_iceberg():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {TABLE_NAME}")
+        logger.info(f"Reading data from {BQ_TABLE_NAME}")
 
-        # Read from Iceberg using Managed I/O
-        read_data = pipeline | 'ReadFromIceberg' >> managed.Read(
-            managed.ICEBERG,
-            config={
-                'table': TABLE_NAME,
-                'catalog_name': CATALOG_NAME,
-                'catalog_properties': CATALOG_PROPERTIES
-            }
+        # Read from BigQuery using standard BigQueryIO
+        read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
+            table=BQ_TABLE_NAME,
+            use_standard_sql=True
         )
 
         # Print each record
@@ -129,7 +112,7 @@ def read_from_iceberg():
 
 def read_with_filter():
     """
-    Pipeline to read filtered data from Iceberg table.
+    Pipeline to read filtered data from BigQuery table.
     Example: Read only active employees in Engineering department.
     """
     logger.info("Starting filtered read pipeline...")
@@ -142,18 +125,20 @@ def read_with_filter():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading filtered data from {TABLE_NAME}")
+        logger.info(f"Reading filtered data from {BQ_TABLE_NAME}")
 
-        # Read from Iceberg with filter using Managed I/O
-        filtered_data = pipeline | 'ReadFilteredData' >> managed.Read(
-            managed.ICEBERG,
-            config={
-                'table': TABLE_NAME,
-                'catalog_name': CATALOG_NAME,
-                'catalog_properties': CATALOG_PROPERTIES,
-                # Filter for active Engineering employees with age > 30
-                'filter': "is_active = true AND department = 'Engineering' AND age > 30"
-            }
+        # Read from BigQuery with SQL filter
+        query = f"""
+        SELECT *
+        FROM `{BQ_TABLE_NAME}`
+        WHERE is_active = true
+        AND department = 'Engineering'
+        AND age > 30
+        """
+
+        filtered_data = pipeline | 'ReadFilteredData' >> bigquery.ReadFromBigQuery(
+            query=query,
+            use_standard_sql=True
         )
 
         # Print filtered records
@@ -170,19 +155,20 @@ def run_demo():
     """
     try:
         logger.info("=" * 60)
-        logger.info("APACHE BEAM ICEBERG DEMO WITH BIGLAKE METASTORE")
+        logger.info("APACHE BEAM BIGQUERY DEMO")
         logger.info("=" * 60)
 
-        # Step 1: Write data to Iceberg
-        logger.info("\n1. Writing sample data to Iceberg table...")
-        write_to_iceberg()
+        # Step 1: Write data to BigQuery
+        logger.info("\n1. Writing sample data to BigQuery table...")
+        write_to_bigquery()
 
         # Step 2: Read all data
-        logger.info("\n2. Reading all data from Iceberg table...")
-        read_from_iceberg()
+        logger.info("\n2. Reading all data from BigQuery table...")
+        read_from_bigquery()
 
         # Step 3: Read with filter
-        logger.info("\n3. Reading filtered data (active Engineering employees, age > 30)...")
+        logger.info(
+            "\n3. Reading filtered data (active Engineering employees, age > 30)...")
         read_with_filter()
 
         logger.info("\n" + "=" * 60)
