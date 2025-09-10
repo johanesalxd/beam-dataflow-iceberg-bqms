@@ -31,7 +31,6 @@ from apache_beam.transforms import managed
 from google.cloud import bigquery as bq_client
 
 # Import configuration
-from beam_iceberg_config import BQ_DATASET
 from beam_iceberg_config import BQ_ICEBERG_MANAGEDIO_TABLE_NAME
 from beam_iceberg_config import BQ_ICEBERG_TABLE_NAME
 from beam_iceberg_config import BQ_MANAGEDIO_TABLE_NAME
@@ -58,7 +57,7 @@ def write_to_bigquery():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Writing {len(SAMPLE_DATA)} records to {BQ_TABLE_NAME}")
+        logger.info("Writing %d records to %s", len(SAMPLE_DATA), BQ_TABLE_NAME)
 
         input_data = pipeline | 'CreateSampleData' >> beam.Create(SAMPLE_DATA)
 
@@ -83,7 +82,7 @@ def read_from_bigquery():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {BQ_TABLE_NAME}")
+        logger.info("Reading data from %s", BQ_TABLE_NAME)
 
         read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
             table=BQ_TABLE_NAME,
@@ -91,7 +90,7 @@ def read_from_bigquery():
         )
 
         read_data | 'PrintRecords' >> beam.Map(
-            lambda record: logger.info(f"Record: {record}")
+            lambda record: logger.info("Record: %s", record)
         )
 
         logger.info("Read pipeline completed successfully!")
@@ -109,7 +108,7 @@ def read_with_filter():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading filtered data from {BQ_TABLE_NAME}")
+        logger.info("Reading filtered data from %s", BQ_TABLE_NAME)
 
         query = f"""
         SELECT *
@@ -125,7 +124,7 @@ def read_with_filter():
         )
 
         filtered_data | 'PrintFilteredRecords' >> beam.Map(
-            lambda record: logger.info(f"Filtered Record: {record}")
+            lambda record: logger.info("Filtered Record: %s", record)
         )
 
         logger.info("Filtered read pipeline completed successfully!")
@@ -159,12 +158,12 @@ def copy_table_iceberg():
     """
 
     logger.info(
-        f"Creating Iceberg table if not exists: {BQ_ICEBERG_TABLE_NAME}")
+        "Creating Iceberg table if not exists: %s", BQ_ICEBERG_TABLE_NAME)
     client.query(create_table_sql).result()
 
     # Clear existing data (Iceberg tables don't support TRUNCATE)
     delete_sql = f"DELETE FROM `{BQ_ICEBERG_TABLE_NAME}` WHERE TRUE"
-    logger.info(f"Clearing existing data from {BQ_ICEBERG_TABLE_NAME}")
+    logger.info("Clearing existing data from %s", BQ_ICEBERG_TABLE_NAME)
     client.query(delete_sql).result()
 
     # Copy data using Beam pipeline
@@ -176,7 +175,7 @@ def copy_table_iceberg():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {BQ_TABLE_NAME} using BigQueryIO")
+        logger.info("Reading data from %s using BigQueryIO", BQ_TABLE_NAME)
 
         read_data = pipeline | 'ReadFromBigQuery' >> bigquery.ReadFromBigQuery(
             table=BQ_TABLE_NAME,
@@ -203,7 +202,7 @@ def copy_table_with_managed_io():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
+        logger.info("Reading data from %s using Managed I/O", BQ_TABLE_NAME)
 
         # Notes (1/3): this direct table access configuration will causing an issue on timestamp casting which you'll see below
         read_data = pipeline | 'ReadWithManagedIO' >> managed.Read(
@@ -240,7 +239,7 @@ def read_filtered_with_managed_io():
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(
-            f"Reading filtered data from {BQ_MANAGEDIO_TABLE_NAME} using Managed I/O")
+            "Reading filtered data from %s using Managed I/O", BQ_MANAGEDIO_TABLE_NAME)
 
         # Notes (2/3): created_at is cast as STRING to avoid TypeError because of the direct table access above
         filtered_data = pipeline | 'ReadFilteredWithManagedIO' >> managed.Read(
@@ -266,7 +265,7 @@ def read_filtered_with_managed_io():
 
         filtered_data | 'PrintFilteredManagedRecords' >> beam.Map(
             lambda record: logger.info(
-                f"Filtered Managed I/O Record: {record}")
+                "Filtered Managed I/O Record: %s", record)
         )
 
         logger.info(
@@ -285,7 +284,7 @@ def copy_table_to_iceberg_with_managed_io():
     ])
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
-        logger.info(f"Reading data from {BQ_TABLE_NAME} using Managed I/O")
+        logger.info("Reading data from %s using Managed I/O", BQ_TABLE_NAME)
 
         # Notes (3/3): this one seems the correct way to read and avoid error like above
         read_data = pipeline | 'ReadFromBigQueryManagedIO' >> managed.Read(
@@ -340,7 +339,7 @@ def read_from_iceberg_with_managed_io():
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         logger.info(
-            f"Reading filtered data from {BQ_ICEBERG_MANAGEDIO_TABLE_NAME} using Managed I/O")
+            "Reading filtered data from %s using Managed I/O", BQ_ICEBERG_MANAGEDIO_TABLE_NAME)
 
         # BigQuery Metastore catalog configuration
         catalog_config = {
@@ -361,7 +360,7 @@ def read_from_iceberg_with_managed_io():
         )
 
         filtered_data | 'PrintIcebergManagedRecords' >> beam.Map(
-            lambda record: logger.info(f"Iceberg Managed I/O Record: {record}")
+            lambda record: logger.info("Iceberg Managed I/O Record: %s", record)
         )
 
         logger.info(
@@ -404,13 +403,13 @@ def run_demo():
             "\n8. Read filtered data from BigLake Iceberg Table using Managed I/O...")
         read_from_iceberg_with_managed_io()
 
-        logger.info("\n" + "=" * 60)
+        logger.info('\n%s', '=' * 60)
         logger.info("DEMO COMPLETED SUCCESSFULLY!")
         logger.info("All BigQueryIO and Managed I/O operations completed!")
-        logger.info("=" * 60)
+        logger.info('%s', '=' * 60)
 
     except Exception as e:
-        logger.error(f"Demo failed with error: {str(e)}")
+        logger.error("Demo failed with error: %s", e)
         raise
 
 

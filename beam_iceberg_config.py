@@ -3,9 +3,6 @@ Configuration file for the Beam Iceberg demo.
 Configured for johanesa-playground-326616 project.
 """
 
-from datetime import datetime
-from typing import LiteralString
-
 # GCP Project Configuration
 GCP_PROJECT = 'johanesa-playground-326616'
 BQ_DATASET = 'my_iceberg_metastore'
