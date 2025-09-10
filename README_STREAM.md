@@ -8,6 +8,7 @@ This pipeline:
 - Reads real-time taxi ride data from a PubSub subscription tied to the public topic `projects/pubsub-public-data/topics/taxirides-realtime`
 - Processes JSON messages containing taxi ride information
 - Stores the data in BigQuery with the original JSON payload preserved in a JSON column
+- **Optionally**, writes the same data to a BigQuery managed Iceberg table.
 - Can run locally using DirectRunner or on Google Cloud Dataflow
 
 ## Data Schema
@@ -104,11 +105,26 @@ TEMP_BUCKET="gs://your-bucket"   # Your GCS bucket for temp files
 
 ## Usage
 
+The pipeline can now write to a standard BigQuery table and an optional BigQuery Iceberg table.
+
+### Pre-computation Step: Create Iceberg Table
+
+Since BigQuery-managed Iceberg tables do not support dynamic creation, you must create them manually before running the pipeline. The provided run scripts (`run_local.sh` and `run_dataflow.sh`) handle this automatically.
+
+The script `create_iceberg_tables.py` is called by the run scripts to create the table with the following options:
+- `table_format = 'ICEBERG'`
+- `file_format = 'PARQUET'`
+- A specified `storage_uri` on Google Cloud Storage.
+
+**Note on Iceberg Limitations**: As of this writing, BigQuery-managed Iceberg tables have some limitations:
+- They do not support the `JSON` data type, so the `payload` is stored as a `STRING`. JSON functions can still be used on this string at query time.
+- They do not support partitioning. The table will be unpartitioned.
+
 ### Running Locally
 
-1. Make the script executable:
+1. Make the scripts executable:
 ```bash
-chmod +x run_local.sh
+chmod +x run_local.sh create_iceberg_tables.py
 ```
 
 2. Run the pipeline:
@@ -117,21 +133,23 @@ chmod +x run_local.sh
 ```
 
 This will:
-- Create the BigQuery dataset `dataflow_demo_local` if it doesn't exist
-- Install dependencies using UV
-- Run the pipeline locally using DirectRunner
-- Process messages in real-time (press Ctrl+C to stop)
+- Create the BigQuery dataset `dataflow_demo_local` if it doesn't exist.
+- Create the BigQuery Iceberg table `taxirides_realtime_iceberg` if it doesn't exist.
+- Create the PubSub subscription.
+- Install dependencies using UV.
+- Run the pipeline locally, writing to both the standard and Iceberg tables.
+- Process messages in real-time (press Ctrl+C to stop).
 
 ### Running on Dataflow
 
-1. Create a GCS bucket for temporary files:
+1. Create a GCS bucket for temporary files if you haven't already:
 ```bash
 gsutil mb gs://your-bucket-name
 ```
 
-2. Make the script executable:
+2. Make the scripts executable:
 ```bash
-chmod +x run_dataflow.sh
+chmod +x run_dataflow.sh create_iceberg_tables.py
 ```
 
 3. Run the pipeline:
@@ -140,11 +158,13 @@ chmod +x run_dataflow.sh
 ```
 
 This will:
-- Create the GCS bucket if it doesn't exist
-- Create the BigQuery dataset `dataflow_demo` if it doesn't exist
-- Install dependencies using UV
-- Submit the job to Dataflow
-- Provide links to monitor the job and data
+- Create the GCS bucket if it doesn't exist.
+- Create the BigQuery dataset `dataflow_demo` if it doesn't exist.
+- Create the BigQuery Iceberg table `taxirides_realtime_iceberg` if it doesn't exist.
+- Create the PubSub subscription.
+- Install dependencies using UV.
+- Submit the job to Dataflow, writing to both the standard and Iceberg tables.
+- Provide links to monitor the job and data.
 
 ## BigQuery Table Features
 
@@ -167,14 +187,22 @@ You can also run the pipeline manually with custom parameters:
 # Install dependencies
 uv sync
 
-# Run locally
+# Run locally (standard table only)
 uv run python pubsub_to_bigquery.py \
     --runner=DirectRunner \
     --project=your-project-id \
     --output_table=your-project-id:dataset.table \
     --streaming
 
-# Run on Dataflow
+# Run locally (both standard and Iceberg tables)
+uv run python pubsub_to_bigquery.py \
+    --runner=DirectRunner \
+    --project=your-project-id \
+    --output_table=your-project-id:dataset.table \
+    --output_iceberg_table=your-project-id:dataset.table_iceberg \
+    --streaming
+
+# Run on Dataflow (both standard and Iceberg tables)
 uv run python pubsub_to_bigquery.py \
     --runner=DataflowRunner \
     --project=your-project-id \
@@ -182,6 +210,7 @@ uv run python pubsub_to_bigquery.py \
     --temp_location=gs://your-bucket/temp \
     --staging_location=gs://your-bucket/staging \
     --output_table=your-project-id:dataset.table \
+    --output_iceberg_table=your-project-id:dataset.table_iceberg \
     --streaming \
     --max_num_workers=3
 ```
@@ -192,6 +221,7 @@ uv run python pubsub_to_bigquery.py \
 |-----------|-------------|---------|----------|
 | `--project` | GCP project ID | - | Yes |
 | `--output_table` | BigQuery table (project:dataset.table) | - | Yes |
+| `--output_iceberg_table` | Optional Iceberg table (project:dataset.table) | - | No |
 | `--pubsub_subscription` | PubSub subscription to read from | - | Yes |
 | `--runner` | Pipeline runner | `DirectRunner` | No |
 | `--region` | GCP region for Dataflow | `us-central1` | No |

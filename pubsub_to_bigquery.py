@@ -91,6 +91,10 @@ def run_pipeline(argv=None):
         help='BigQuery output table in format project:dataset.table'
     )
     parser.add_argument(
+        '--output_iceberg_table',
+        help='Optional: BigQuery Iceberg output table in format project:dataset.table'
+    )
+    parser.add_argument(
         '--pubsub_subscription',
         required=True,
         help='PubSub subscription to read from'
@@ -153,6 +157,8 @@ def run_pipeline(argv=None):
     logging.info("Starting pipeline with runner: %s", known_args.runner)
     logging.info("Reading from PubSub subscription: %s", known_args.pubsub_subscription)
     logging.info("Writing to BigQuery table: %s", known_args.output_table)
+    if known_args.output_iceberg_table:
+        logging.info("Also writing to BigQuery Iceberg table: %s", known_args.output_iceberg_table)
 
     # Create and run pipeline
     with beam.Pipeline(options=pipeline_options) as pipeline:
@@ -169,10 +175,8 @@ def run_pipeline(argv=None):
             | 'ParseMessages' >> beam.ParDo(ParsePubSubMessage())
         )
 
-        # Write to BigQuery
-        # Define table partitioning
+        # Branch 1: Write to standard BigQuery table (required)
         partitioning = {'timePartitioning': {'type': 'DAY', 'field': 'event_time'}}
-
         _ = (
             parsed_messages
             | 'WriteToBigQuery' >> WriteToBigQuery(
@@ -183,6 +187,18 @@ def run_pipeline(argv=None):
                 additional_bq_parameters=partitioning
             )
         )
+
+        # Branch 2: Write to Iceberg table (optional)
+        if known_args.output_iceberg_table:
+            _ = (
+                parsed_messages
+                | 'WriteToIcebergTable' >> WriteToBigQuery(
+                    table=known_args.output_iceberg_table,
+                    schema=get_bigquery_schema(),
+                    write_disposition=BigQueryDisposition.WRITE_APPEND,
+                    create_disposition=BigQueryDisposition.CREATE_NEVER  # Iceberg tables must exist
+                )
+            )
 
 
 if __name__ == '__main__':
