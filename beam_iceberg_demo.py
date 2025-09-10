@@ -31,15 +31,15 @@ from apache_beam.transforms import managed
 from google.cloud import bigquery as bq_client
 
 # Import configuration
-from config import BQ_DATASET
-from config import BQ_ICEBERG_MANAGEDIO_TABLE_NAME
-from config import BQ_ICEBERG_TABLE_NAME
-from config import BQ_MANAGEDIO_TABLE_NAME
-from config import BQ_TABLE_NAME
-from config import GCP_PROJECT
-from config import GCS_BUCKET
-from config import REGION
-from config import SAMPLE_DATA
+from beam_iceberg_config import BQ_DATASET
+from beam_iceberg_config import BQ_ICEBERG_MANAGEDIO_TABLE_NAME
+from beam_iceberg_config import BQ_ICEBERG_TABLE_NAME
+from beam_iceberg_config import BQ_MANAGEDIO_TABLE_NAME
+from beam_iceberg_config import BQ_TABLE_NAME
+from beam_iceberg_config import GCP_PROJECT
+from beam_iceberg_config import GCS_BUCKET
+from beam_iceberg_config import REGION
+from beam_iceberg_config import SAMPLE_DATA
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
