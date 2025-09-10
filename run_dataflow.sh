@@ -4,9 +4,9 @@
 set -e
 
 # --- Configuration ---
-PROJECT_ID="johanesa-playground-326616" # <-- IMPORTANT: SET YOUR GCP PROJECT ID HERE
+PROJECT_ID="your-project-id" # <-- IMPORTANT: SET YOUR GCP PROJECT ID HERE
 REGION="us-central1" # <-- Change to your preferred region
-GCS_BUCKET="gs://johanesa-playground-326616-dataflow-bucket" # <-- IMPORTANT: SET YOUR GCS BUCKET HERE
+GCS_BUCKET="your-bucket-name" # <-- IMPORTANT: SET YOUR GCS BUCKET HERE
 BIGQUERY_DATASET="dataflow_demo"
 BIGQUERY_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime"
 BIGQUERY_ICEBERG_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime_iceberg"
@@ -36,7 +36,7 @@ bq show --dataset ${PROJECT_ID}:${BIGQUERY_DATASET} || bq mk --dataset ${PROJECT
 
 # 3. Create Iceberg table if it doesn't exist
 echo "Creating Iceberg table if it doesn't exist..."
-uv run python create_iceberg_tables.py \
+uv run python schemas/create_iceberg_tables.py \
     --project_id=${PROJECT_ID} \
     --dataset_id=${BIGQUERY_DATASET} \
     --table_id=taxirides_realtime_iceberg \

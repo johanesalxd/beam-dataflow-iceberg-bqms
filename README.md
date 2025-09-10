@@ -26,7 +26,7 @@ The demo runs 8 sequential pipelines:
 
 2. **Required Resources**
    - BigQuery dataset for storing the tables
-   - GCS bucket for temporary files (configured in `config.py`)
+   - GCS bucket for temporary files (configured in `beam_iceberg_config.py`)
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ The demo runs 8 sequential pipelines:
    ```
 
 2. **Configure Settings**
-   Update `config.py` with your GCP project details:
+   Update `beam_iceberg_config.py` with your GCP project details:
    - `GCP_PROJECT`: Your Google Cloud project ID
    - `BQ_DATASET`: BigQuery dataset name
    - `GCS_BUCKET`: GCS bucket for temporary files
@@ -133,8 +133,19 @@ This approach ensures the Iceberg table behaves like a standard table with TRUNC
 ## Files
 
 - `beam_iceberg_demo.py`: Main demo script with 8 pipeline functions
-- `config.py`: Configuration settings (update with your project details)
+- `beam_iceberg_config.py`: Configuration settings (update with your project details)
 - `requirements.txt`: Python dependencies
+
+## Project Structure
+
+```
+.
+├── beam_iceberg_demo.py        # Main demo script with 8 pipeline functions
+├── beam_iceberg_config.py      # Configuration settings (GCP project, datasets, tables)
+├── requirements.txt            # Python dependencies
+├── pyproject.toml             # UV package manager configuration
+└── uv.lock                    # UV lock file for dependency versions
+```
 
 ## Resources
 

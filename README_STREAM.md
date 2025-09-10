@@ -44,6 +44,20 @@ The pipeline uses a schema defined in `schemas/generic_table.json`. This file sh
 ]
 ```
 
+## Project Structure
+
+```
+.
+├── pubsub_to_bigquery.py      # Main streaming pipeline script
+├── run_local.sh               # Script to run pipeline locally with DirectRunner
+├── run_dataflow.sh            # Script to deploy pipeline to Google Cloud Dataflow
+├── schemas/
+│   ├── create_iceberg_tables.py  # Utility to create BigQuery Iceberg tables
+│   └── generic_table.json        # BigQuery table schema definition
+├── pyproject.toml             # UV package manager configuration
+└── uv.lock                    # UV lock file for dependency versions
+```
+
 ## Prerequisites
 
 1. **UV Package Manager**: This project uses [UV](https://github.com/astral-sh/uv) for dependency management
@@ -124,7 +138,7 @@ The script `create_iceberg_tables.py` is called by the run scripts to create the
 
 1. Make the scripts executable:
 ```bash
-chmod +x run_local.sh create_iceberg_tables.py
+chmod +x run_local.sh
 ```
 
 2. Run the pipeline:
@@ -149,7 +163,7 @@ gsutil mb gs://your-bucket-name
 
 2. Make the scripts executable:
 ```bash
-chmod +x run_dataflow.sh create_iceberg_tables.py
+chmod +x run_dataflow.sh
 ```
 
 3. Run the pipeline:

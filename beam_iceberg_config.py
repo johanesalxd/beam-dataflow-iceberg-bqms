@@ -1,12 +1,11 @@
 """
 Configuration file for the Beam Iceberg demo.
-Configured for johanesa-playground-326616 project.
 """
 
 # GCP Project Configuration
-GCP_PROJECT = 'johanesa-playground-326616'
-BQ_DATASET = 'my_iceberg_metastore'
-GCS_BUCKET = 'gs://johanesa-playground-326616-dataflow-bucket'
+GCP_PROJECT = 'your-project-id'
+BQ_DATASET = 'your-dataset-name'
+GCS_BUCKET = 'your-bucket-name'
 # GCS_WAREHOUSE_PATH = f'{GCS_BUCKET}/iceberg-warehouse'
 REGION = 'us-central1'
 
