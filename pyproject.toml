@@ -1,0 +1,18 @@
+[project]
+name = "pubsub-to-bigquery"
+version = "0.1.0"
+description = "Apache Beam pipeline to read from PubSub and write to BigQuery"
+authors = [
+    {name = "johanesalxd", email = "17249308+johanesalxd@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "apache-beam[gcp]>=2.67.0",
+    "google-cloud-pubsub>=2.31.1",
+    "google-cloud-bigquery>=3.37.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

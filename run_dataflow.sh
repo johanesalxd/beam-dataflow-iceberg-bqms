@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+# --- Configuration ---
+PROJECT_ID="your-project-id" # <-- IMPORTANT: SET YOUR GCP PROJECT ID HERE
+REGION="us-central1" # <-- Change to your preferred region
+TEMP_BUCKET="gs://your-gcs-bucket" # <-- IMPORTANT: SET YOUR GCS BUCKET HERE
+BIGQUERY_DATASET="dataflow_demo"
+BIGQUERY_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime"
+PUBSUB_TOPIC="projects/pubsub-public-data/topics/taxirides-realtime"
+SUBSCRIPTION_NAME="taxirides-dataflow-sub"
+FULL_SUBSCRIPTION_NAME="projects/${PROJECT_ID}/subscriptions/${SUBSCRIPTION_NAME}"
+JOB_NAME="pubsub-to-bq-$(date +%Y%m%d-%H%M%S)"
+
+# --- Main Script ---
+
+echo "=== Dataflow Deployment Script ==="
+echo "Project ID: ${PROJECT_ID}"
+echo "Region: ${REGION}"
+echo "Job Name: ${JOB_NAME}"
+echo "PubSub Subscription: ${FULL_SUBSCRIPTION_NAME}"
+echo "BigQuery Table: ${BIGQUERY_TABLE}"
+echo ""
+
+# 1. Create GCS bucket if it doesn't exist
+echo "Creating GCS bucket if it doesn't exist..."
+gsutil ls ${TEMP_BUCKET} 2>/dev/null || gsutil mb -p ${PROJECT_ID} ${TEMP_BUCKET}
+
+# 2. Create BigQuery dataset if it doesn't exist
+echo "Creating BigQuery dataset if it doesn't exist..."
+bq show --dataset ${PROJECT_ID}:${BIGQUERY_DATASET} || bq mk --dataset ${PROJECT_ID}:${BIGQUERY_DATASET}
+
+# 3. Create PubSub subscription if it doesn't exist
+echo "Creating PubSub subscription if it doesn't exist..."
+gcloud pubsub subscriptions describe ${FULL_SUBSCRIPTION_NAME} >/dev/null 2>&1 || \
+    gcloud pubsub subscriptions create ${SUBSCRIPTION_NAME} --topic=${PUBSUB_TOPIC}
+
+# 4. Install dependencies with UV
+echo "Installing dependencies with UV..."
+uv sync
+
+# 5. Run the pipeline on Dataflow
+echo "Submitting pipeline to Dataflow..."
+uv run python pubsub_to_bigquery.py \
+    --runner=DataflowRunner \
+    --project=${PROJECT_ID} \
+    --region=${REGION} \
+    --job_name=${JOB_NAME} \
+    --temp_location=${TEMP_BUCKET}/temp \
+    --staging_location=${TEMP_BUCKET}/staging \
+    --output_table=${BIGQUERY_TABLE} \
+    --pubsub_subscription=${FULL_SUBSCRIPTION_NAME} \
+    --max_num_workers=3
+
+echo ""
+echo "=== Job Submitted Successfully ==="
+echo "The pipeline has been submitted to Dataflow and is starting up..."
