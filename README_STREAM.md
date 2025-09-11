@@ -51,6 +51,10 @@ The pipeline uses a schema defined in `schemas/generic_table.json`. This file sh
 ├── pubsub_to_bigquery.py      # Main streaming pipeline script
 ├── run_local.sh               # Script to run pipeline locally with DirectRunner
 ├── run_dataflow.sh            # Script to deploy pipeline to Google Cloud Dataflow
+├── utils/                     # Utility modules for pipeline components
+│   ├── __init__.py           # Package initialization
+│   ├── pipeline_options.py  # Argument parsing and pipeline options setup
+│   └── transforms.py        # Apache Beam transforms and DoFn classes
 ├── schemas/
 │   ├── create_iceberg_tables.py  # Utility to create BigQuery Iceberg tables
 │   └── generic_table.json        # BigQuery table schema definition
@@ -206,7 +210,7 @@ uv run python pubsub_to_bigquery.py \
     --runner=DirectRunner \
     --project=your-project-id \
     --output_table=your-project-id:dataset.table \
-    --streaming
+    --pubsub_subscription=projects/your-project-id/subscriptions/your-subscription
 
 # Run locally (both standard and Iceberg tables)
 uv run python pubsub_to_bigquery.py \
@@ -214,7 +218,7 @@ uv run python pubsub_to_bigquery.py \
     --project=your-project-id \
     --output_table=your-project-id:dataset.table \
     --output_iceberg_table=your-project-id:dataset.table_iceberg \
-    --streaming
+    --pubsub_subscription=projects/your-project-id/subscriptions/your-subscription
 
 # Run on Dataflow (both standard and Iceberg tables)
 uv run python pubsub_to_bigquery.py \
@@ -225,7 +229,7 @@ uv run python pubsub_to_bigquery.py \
     --staging_location=gs://your-bucket/staging \
     --output_table=your-project-id:dataset.table \
     --output_iceberg_table=your-project-id:dataset.table_iceberg \
-    --streaming \
+    --pubsub_subscription=projects/your-project-id/subscriptions/your-subscription \
     --max_num_workers=3
 ```
 
@@ -241,7 +245,7 @@ uv run python pubsub_to_bigquery.py \
 | `--region` | GCP region for Dataflow | `us-central1` | No |
 | `--temp_location` | GCS temp location | - | For Dataflow |
 | `--staging_location` | GCS staging location | - | For Dataflow |
-| `--streaming` | Enable streaming mode | False | No |
+| `--job_name` | Dataflow job name | - | No |
 | `--max_num_workers` | Max Dataflow workers | 3 | No |
 
 ## Monitoring
