@@ -10,8 +10,7 @@ import logging
 
 from apache_beam import typehints
 import apache_beam as beam
-
-# from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import BagStateSpec
 
 
 @typehints.with_input_types(dict)
@@ -102,48 +101,48 @@ def get_bigquery_schema():
     return {'fields': fields}
 
 
-# def get_agg_bigquery_schema():
-#     """Load BigQuery table schema from a JSON file."""
-#     with open('schemas/agg_table.json', 'r') as f:
-#         fields = json.load(f)
-#     return {'fields': fields}
+def get_agg_bigquery_schema():
+    """Load BigQuery table schema from a JSON file."""
+    with open('schemas/agg_table.json', 'r') as f:
+        fields = json.load(f)
+    return {'fields': fields}
 
 
-# def get_sql_transform():
-#     """Load SQL transform from a file."""
-#     with open('schemas/agg_table.sql', 'r') as f:
-#         return f.read()
+def get_sql_transform():
+    """Load SQL transform from a file."""
+    with open('schemas/agg_table.sql', 'r') as f:
+        return f.read()
 
 
-# class AddWindowInfo(beam.DoFn):
-#     """A DoFn that adds the window start and end times to an element."""
+class AddWindowInfo(beam.DoFn):
+    """A DoFn that adds the window start and end times to an element."""
 
-#     def process(self, element, window=beam.DoFn.WindowParam):
-#         # The element is the dictionary from the SqlTransform output
-#         element['window_start'] = window.start.to_rfc3339()
-#         element['window_end'] = window.end.to_rfc3339()
-#         yield element
+    def process(self, element, window=beam.DoFn.WindowParam):
+        # The element is the dictionary from the SqlTransform output
+        element['window_start'] = window.start.to_rfc3339()
+        element['window_end'] = window.end.to_rfc3339()
+        yield element
 
 
-# class StatefulDeduplication(beam.DoFn):
-#     """
-#     Stateful deduplication that maintains state across triggers within windows.
-#     Relies on window expiration for state cleanup.
-#     """
-#     SEEN_IDS_STATE = BagStateSpec(
-#         'seen_ids', beam.coders.StrUtf8Coder())
+class StatefulDeduplication(beam.DoFn):
+    """
+    Stateful deduplication that maintains state across triggers within windows.
+    Relies on window expiration for state cleanup.
+    """
+    SEEN_IDS_STATE = BagStateSpec(
+        'seen_ids', beam.coders.StrUtf8Coder())
 
-#     def process(
-#             self,
-#             element,
-#             seen_ids=beam.DoFn.StateParam(SEEN_IDS_STATE)):
-#         """Process elements and deduplicate based on ride_id."""
-#         ride_id, message = element
-#         current_seen = set(seen_ids.read())
+    def process(
+            self,
+            element,
+            seen_ids=beam.DoFn.StateParam(SEEN_IDS_STATE)):
+        """Process elements and deduplicate based on ride_id."""
+        ride_id, message = element
+        current_seen = set(seen_ids.read())
 
-#         if ride_id not in current_seen:
-#             seen_ids.add(ride_id)
-#             yield message
-#             logging.debug("New ride_id %s processed in window", ride_id)
-#         else:
-#             logging.debug("Duplicate ride_id %s ignored in window", ride_id)
+        if ride_id not in current_seen:
+            seen_ids.add(ride_id)
+            yield message
+            logging.debug("New ride_id %s processed in window", ride_id)
+        else:
+            logging.debug("Duplicate ride_id %s ignored in window", ride_id)
