@@ -6,7 +6,7 @@ set -e
 # --- Configuration ---
 PROJECT_ID="your-project-id" # <-- IMPORTANT: SET YOUR GCP PROJECT ID HERE
 REGION="us-central1" # <-- Change to your preferred region
-GCS_BUCKET="your-bucket-name" # <-- IMPORTANT: SET YOUR GCS BUCKET HERE
+GCS_BUCKET="gs://your-bucket-name" # <-- IMPORTANT: SET YOUR GCS BUCKET HERE
 BIGQUERY_DATASET="dataflow_demo"
 BIGQUERY_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime"
 BIGQUERY_ICEBERG_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime_iceberg"

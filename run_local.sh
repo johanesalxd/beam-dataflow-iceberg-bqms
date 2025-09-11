@@ -5,9 +5,9 @@ set -e
 
 # --- Configuration ---
 PROJECT_ID="your-project-id" # <-- IMPORTANT: SET YOUR GCP PROJECT ID HERE
+GCS_BUCKET="gs://your-bucket-name"
 BIGQUERY_DATASET="dataflow_demo_local"
 BIGQUERY_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime"
-GCS_BUCKET="your-bucket-name"
 BIGQUERY_ICEBERG_TABLE="${PROJECT_ID}:${BIGQUERY_DATASET}.taxirides_realtime_iceberg"
 ICEBERG_STORAGE_URI="${GCS_BUCKET}/${BIGQUERY_DATASET}/taxirides_realtime_iceberg"
 PUBSUB_TOPIC="projects/pubsub-public-data/topics/taxirides-realtime"
