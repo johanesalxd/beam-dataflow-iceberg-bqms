@@ -27,7 +27,11 @@ def parse_arguments(argv=None):
     )
     parser.add_argument(
         '--output_iceberg_table',
-        help='Optional: BigQuery Iceberg output table in format project:dataset.table'
+        help='Optional BigQuery Iceberg table in the format "PROJECT:DATASET.TABLE"'
+    )
+    parser.add_argument(
+        '--output_agg_table',
+        help='Optional BigQuery table for streaming aggregations in the format "PROJECT:DATASET.TABLE"'
     )
     parser.add_argument(
         '--pubsub_subscription',
@@ -73,6 +77,7 @@ def setup_pipeline_options(known_args, pipeline_args):
 
     # For PubSub, always enable streaming
     pipeline_options.view_as(StandardOptions).streaming = True
+    pipeline_options.view_as(StandardOptions).save_main_session = True
 
     if known_args.runner == 'DataflowRunner':
         google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
@@ -104,3 +109,6 @@ def log_pipeline_info(known_args):
     if known_args.output_iceberg_table:
         logging.info("Also writing to BigQuery Iceberg table: %s",
                      known_args.output_iceberg_table)
+    if known_args.output_agg_table:
+        logging.info("Writing aggregations to BigQuery table: %s",
+                     known_args.output_agg_table)

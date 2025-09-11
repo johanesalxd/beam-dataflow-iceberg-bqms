@@ -1,0 +1,27 @@
+[
+  {
+    "name": "window_start",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "window_end",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "ride_status",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "passenger_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "processing_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  }
+]
