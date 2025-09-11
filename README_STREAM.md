@@ -9,7 +9,8 @@ This pipeline:
 - Processes JSON messages containing taxi ride information
 - Stores the data in BigQuery with the original JSON payload preserved in a JSON column
 - **Optionally**, writes the same data to a BigQuery managed Iceberg table.
-- Can run locally using DirectRunner or on Google Cloud Dataflow
+- **Optionally**, performs a real-time streaming aggregation when run on Dataflow. This feature is not supported on the `DirectRunner`. See [Streaming Aggregation Details](README_STREAM_AGG.md) for more information.
+- Can run locally using `DirectRunner` or on Google Cloud `Dataflow`
 
 ## Data Schema
 
@@ -240,6 +241,7 @@ uv run python pubsub_to_bigquery.py \
 | `--project` | GCP project ID | - | Yes |
 | `--output_table` | BigQuery table (project:dataset.table) | - | Yes |
 | `--output_iceberg_table` | Optional Iceberg table (project:dataset.table) | - | No |
+| `--output_agg_table` | Optional BigQuery table for streaming aggregations | - | No |
 | `--pubsub_subscription` | PubSub subscription to read from | - | Yes |
 | `--runner` | Pipeline runner | `DirectRunner` | No |
 | `--region` | GCP region for Dataflow | `us-central1` | No |

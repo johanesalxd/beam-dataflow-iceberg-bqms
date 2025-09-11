@@ -8,6 +8,7 @@ import logging
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 
@@ -77,7 +78,7 @@ def setup_pipeline_options(known_args, pipeline_args):
 
     # For PubSub, always enable streaming
     pipeline_options.view_as(StandardOptions).streaming = True
-    pipeline_options.view_as(StandardOptions).save_main_session = True
+    pipeline_options.view_as(SetupOptions).save_main_session = True
 
     if known_args.runner == 'DataflowRunner':
         google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
